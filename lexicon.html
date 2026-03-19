@@ -14,7 +14,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);min-
 .header-top{display:flex;align-items:center;gap:8px;margin-bottom:14px}
 .logo{font-family:'DM Serif Display',serif;font-size:20px;color:var(--accent)}
 .badge{background:var(--accent-light);color:var(--accent);font-size:12px;font-weight:600;padding:3px 8px;border-radius:20px}
-.sync-status{margin-left:auto;font-size:11px;font-weight:500;padding:3px 8px;border-radius:20px;transition:all .3s}
+.sync-status{margin-left:auto;font-size:11px;font-weight:500;padding:3px 8px;border-radius:20px;transition:all .3s;cursor:pointer}
 .sync-ok{background:var(--green-light);color:var(--green)}
 .sync-ing{background:var(--amber-light);color:var(--amber)}
 .sync-err{background:var(--red-light);color:var(--red)}
@@ -107,7 +107,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);min-
   <div class="header-top">
     <span class="logo">Lexicon</span>
     <span class="badge" id="wc-badge">0단어</span>
-    <span class="sync-status sync-ok" id="sync-status">✓ 동기화됨</span>
+    <span class="sync-status sync-ok" id="sync-status" onclick="manualSync()" title="클릭하여 동기화">✓ 동기화됨</span>
   </div>
   <div class="tab-bar">
     <button class="tab active" onclick="showTab('input')">입력</button>
@@ -181,9 +181,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);min-
   </div>
 </div>
 <script>
-const API_KEY='$2a$10$uRjjxWWIxts78Qlg6HD3XePfF7KxUfRi0LOKNUSHhlnP2kfe34Vsi';
-const BIN_NAME='lexicon-vocab';
-let BIN_ID=localStorage.getItem('lx_bin_id')||null;
+const GAS_URL='https://script.google.com/macros/s/AKfycbzxJB3KAS3vzgE85gqiHA_HWsQxPBIyQVT-xhVyk5ra5T8Ssf2TwRVWAdnv53EhiuWGUw/exec';
 let words=[],stats={},qtypes={meaning:true,pron:true,sentence:true};
 let qz={qs:[],idx:0,ok:0,wrongs:[]};
 let answered=false,saveTimer=null;
@@ -191,17 +189,15 @@ let answered=false,saveTimer=null;
 async function loadFromCloud(){
   setSync('ing','불러오는 중...');
   try{
-    if(!BIN_ID){
-      const res=await fetch('https://api.jsonbin.io/v3/b',{method:'POST',headers:{'Content-Type':'application/json','X-Access-Key':API_KEY,'X-Bin-Name':BIN_NAME,'X-Bin-Private':'true'},body:JSON.stringify({words:[],stats:{}})});
-      const data=await res.json();
-      BIN_ID=data.metadata.id;
-      localStorage.setItem('lx_bin_id',BIN_ID);
-      words=[];stats={};
-    }else{
-      const res=await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`,{headers:{'X-Access-Key':API_KEY}});
-      const data=await res.json();
-      words=data.record.words||[];stats=data.record.stats||{};
+    const res=await fetch(GAS_URL);
+    const data=await res.json();
+    if(data.ok && data.words && data.words.length>0){
+      words=data.words.map(w=>({word:w.word||'',pron:w.pron||'',meaning:w.meaning||'',example:w.example||'',id:w.id||Date.now()}));
+    } else {
+      try{words=JSON.parse(localStorage.getItem('lx_words')||'[]')}catch(_){words=[]}
+      if(words.length>0) await saveToCloud();
     }
+    try{stats=JSON.parse(localStorage.getItem('lx_stats')||'{}')}catch(_){stats={}}
     setSync('ok','✓ 동기화됨');
   }catch(e){
     try{words=JSON.parse(localStorage.getItem('lx_words')||'[]')}catch(_){words=[]}
@@ -215,7 +211,7 @@ async function loadFromCloud(){
 async function saveToCloud(){
   setSync('ing','저장 중...');
   try{
-    await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`,{method:'PUT',headers:{'Content-Type':'application/json','X-Access-Key':API_KEY},body:JSON.stringify({words,stats})});
+    await fetch(GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'save',words})});
     localStorage.setItem('lx_words',JSON.stringify(words));
     localStorage.setItem('lx_stats',JSON.stringify(stats));
     setSync('ok','✓ 동기화됨');
@@ -226,6 +222,7 @@ async function saveToCloud(){
   }
 }
 
+function manualSync(){loadFromCloud()}
 function scheduleSave(){clearTimeout(saveTimer);saveTimer=setTimeout(saveToCloud,800)}
 function setSync(type,text){const el=document.getElementById('sync-status');el.className='sync-status sync-'+type;el.textContent=text}
 function updateBadge(){document.getElementById('wc-badge').textContent=words.length+'단어'}
