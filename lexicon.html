@@ -209,21 +209,22 @@ async function loadFromCloud(){
 }
 
 async function saveToCloud(){
+  localStorage.setItem('lx_words',JSON.stringify(words));
+  localStorage.setItem('lx_stats',JSON.stringify(stats));
   setSync('ing','저장 중...');
   try{
-    await fetch(GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'save',words})});
-    localStorage.setItem('lx_words',JSON.stringify(words));
-    localStorage.setItem('lx_stats',JSON.stringify(stats));
-    setSync('ok','✓ 동기화됨');
+    const res=await fetch(GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'save',words})});
+    const data=await res.json();
+    if(data.ok){setSync('ok','✓ 동기화됨');}
+    else{setSync('err','⚠ 저장 실패');}
   }catch(e){
-    localStorage.setItem('lx_words',JSON.stringify(words));
-    localStorage.setItem('lx_stats',JSON.stringify(stats));
+    console.log('saveToCloud error:',e);
     setSync('err','⚠ 저장 실패');
   }
 }
 
 function manualSync(){loadFromCloud()}
-function scheduleSave(){clearTimeout(saveTimer);saveTimer=setTimeout(saveToCloud,800)}
+function scheduleSave(){clearTimeout(saveTimer);saveTimer=setTimeout(saveToCloud,1500)}
 function setSync(type,text){const el=document.getElementById('sync-status');el.className='sync-status sync-'+type;el.textContent=text}
 function updateBadge(){document.getElementById('wc-badge').textContent=words.length+'단어'}
 function showTab(t){document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',['input','list','quiz','stats'][i]===t));document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));document.getElementById('tab-'+t).classList.add('active');if(t==='list')renderList();if(t==='stats')renderStats();if(t==='quiz')resetQuizView()}
