@@ -191,16 +191,11 @@ async function loadFromCloud(){
   try{
     const res=await fetch(GAS_URL);
     const data=await res.json();
-    var localWords=[];
-    try{localWords=JSON.parse(localStorage.getItem('lx_words')||'[]')}catch(_){localWords=[]}
-    if(data.ok && data.words && data.words.length>=localWords.length){
-      words=data.words.map(w=>({word:w.word||'',pron:w.pron||'',meaning:w.meaning||'',example:w.example||'',id:w.id||Date.now()}));
+    if(data.ok){
+      words=(data.words||[]).map(w=>({word:w.word||'',pron:w.pron||'',meaning:w.meaning||'',example:w.example||'',id:w.id||Date.now()}));
       localStorage.setItem('lx_words',JSON.stringify(words));
-    } else if(localWords.length>0){
-      words=localWords;
-      await saveToCloud();
     } else {
-      words=[];
+      try{words=JSON.parse(localStorage.getItem('lx_words')||'[]')}catch(_){words=[]}
     }
     try{stats=JSON.parse(localStorage.getItem('lx_stats')||'{}')}catch(_){stats={}}
     setSync('ok','✓ 동기화됨');
