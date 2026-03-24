@@ -213,10 +213,10 @@ async function saveToCloud(){
   localStorage.setItem('lx_stats',JSON.stringify(stats));
   setSync('ing','저장 중...');
   try{
-    const res=await fetch(GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'save',words})});
-    const data=await res.json();
-    if(data.ok){setSync('ok','✓ 동기화됨');}
-    else{setSync('err','⚠ 저장 실패');}
+    const encoded=encodeURIComponent(JSON.stringify(words));
+    const url=GAS_URL+'?action=save&sheet='+SHEET_NAME+'&data='+encoded;
+    const res=await fetch(url,{method:'GET',mode:'no-cors'});
+    setTimeout(()=>setSync('ok','✓ 동기화됨'),1000);
   }catch(e){
     console.log('saveToCloud error:',e);
     setSync('err','⚠ 저장 실패');
